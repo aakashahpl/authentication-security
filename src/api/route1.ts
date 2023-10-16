@@ -1,10 +1,9 @@
 import express from "express";
 import ejs from "ejs";
 import user from "../model/user";
-import bcrypt from "bcrypt";
-const saltRounds: number = 10;
-const route1 = express.Router();
+import passport from "passport";
 
+const route1 = express.Router();
 route1.get("/", (req, res) => {
     res.render("home.ejs");
 });
@@ -14,53 +13,45 @@ route1.get("/login", (req, res) => {
 route1.get("/register", (req, res) => {
     res.render("../views/register");
 });
+route1.get("/secrets", (req, res) => {
+    if (req.isAuthenticated()) {
+        res.render("secrets");
+    } else {
+        res.render("login");
+    }
+});
 route1.post("/register", async (req, res) => {
     try {
-        bcrypt.hash(
-            req.body.password,
-            saltRounds,
-            async (err: any, hash: any) => {
-                if(err){
-                    throw new Error(err);
-                }
-                const newUser = new user({
-                    email: req.body.username,
-                    password: hash,
-                });
-                await newUser.save();
-                res.render("secrets");
-            }
-        );
-    } catch (error: any) {
-        console.log(`cannot create new user ${error.message}`);
+        await user.register({ username: req.body.username }, req.body.password);
+        passport.authenticate("local")(req, res, () => {
+            res.redirect("/secrets");
+        });
+    } catch (error) {
+        console.log(`unable to register user : ${error.message}`);
+        res.redirect("/register");
     }
 });
 route1.post("/login", async (req, res) => {
     try {
-        const username = req.body.username;
-        const user1 = await user.findOne({ email: username });
-        bcrypt.compare(
-            req.body.password,
-            user1.password,
-            function (err: any, result: boolean) {
-                if (result === true) {
-                    res.render("secrets");
-                }
-                else{
-                    console.log("incorrect password");
-                    res.render("login");
-                }
-                if (err) {
-                    throw new Error(err);
-                }
+        const userVariable = new user({
+            username: req.body.username,
+            password: req.body.password,
+        });
+        req.login(userVariable, (err) => {
+            if (!err) {
+                passport.authenticate("local")(req, res, () => {
+                    res.redirect("/secrets");
+                });
             }
-        );
-
+        });
     } catch (error: any) {
-        console.log(`cannot fetch user :${error.message}`);
+        console.log(`unable to login : ${error.message}`);
     }
 });
 route1.get("/logout", (req, res) => {
-    res.render("home");
+    req.logout((err)=>{
+        console.log(err);
+    });
+    res.redirect("/");
 });
 export default route1;
