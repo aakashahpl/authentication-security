@@ -3,6 +3,7 @@ import ejs from "ejs";
 import user from "../model/user";
 import passport from "passport";
 
+
 const route1 = express.Router();
 route1.get("/", (req, res) => {
     res.render("home.ejs");
@@ -20,6 +21,22 @@ route1.get("/secrets", (req, res) => {
         res.render("login");
     }
 });
+
+
+
+route1.get(
+    "/auth/google",
+    passport.authenticate("google", { scope: ["email", "profile"] })
+);
+route1.get('/auth/google/secrets',
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  (req, res) =>{
+    // Successful authentication, redirect secrets.
+    res.redirect('/secrets');
+});
+
+
+
 route1.post("/register", async (req, res) => {
     try {
         await user.register({ username: req.body.username }, req.body.password);
